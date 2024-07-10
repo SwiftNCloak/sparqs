@@ -14,7 +14,13 @@ const config: Config = {
           200: "#F9B44F",
           300: "#FAB14354",
         },
-        textWhite: "#F0F0F0",
+        themeWhite: {
+          100: "#F0F0F0",
+          200: "#CFCFCF",
+        },
+        themeGrayBlack: {
+          100: "3F3F3F",
+        }
       },
     },
   },
