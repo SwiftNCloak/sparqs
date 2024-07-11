@@ -1,10 +1,14 @@
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faBars } from "@fortawesome/free-solid-svg-icons";
+
 export default function NavBar() {
     return (
       // The navigtion bar
       <div className="w-full px-6 py-3 bg-themeOrange-100 text-themeWhite-100 items-center 
                 justify-between flex">
         {/* Logo and Hamburger Icon */}
-        <div className="items-center justify-between flex">
+        <div className="items-center justify-between flex gap-3">
+            <FontAwesomeIcon icon={faBars} className="text-2xl" />
             <h2 className="text-2xl font-extrabold">SparQs</h2>
         </div>
 
