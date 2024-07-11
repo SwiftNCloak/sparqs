@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBars } from "@fortawesome/free-solid-svg-icons";
+import { faBars, faBell } from "@fortawesome/free-solid-svg-icons";
 
 export default function NavBar() {
     return (
@@ -13,7 +13,8 @@ export default function NavBar() {
         </div>
 
         {/* Profile Picture and Notification Bell */}
-        <div className="items-center justify-between flex">
+        <div className="items-center justify-between flex gap-4">
+            <FontAwesomeIcon icon={faBell} className="text-2xl" />
             <div className="border border-white rounded-full w-8 h-8"></div>
         </div>
       </div>
