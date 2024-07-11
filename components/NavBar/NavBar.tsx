@@ -10,7 +10,7 @@ export default function NavBar() {
 
         {/* Profile Picture and Notification Bell */}
         <div className="items-center justify-between flex">
-            image
+            <div className="border border-white rounded-full w-8 h-8"></div>
         </div>
       </div>
     );
