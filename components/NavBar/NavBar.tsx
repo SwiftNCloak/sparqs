@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { logout } from "@/app/logout/page";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars, faBell } from "@fortawesome/free-solid-svg-icons";
@@ -20,6 +21,9 @@ export default function NavBar() {
         <div className="items-center justify-between flex gap-4">
             <FontAwesomeIcon icon={faBell} className="text-2xl" />
             <div className="border border-white rounded-full w-8 h-8"></div>
+            <form action={logout}>
+              <button type="submit">Logout</button>
+            </form>
         </div>
       </div>
     );
