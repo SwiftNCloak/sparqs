@@ -3,9 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { faHouse, faCalendarDays, faGear } from "@fortawesome/free-solid-svg-icons";
 
-export default function SideBar() {
+interface NavLinkProps {
+  href: string;
+  icon: IconDefinition;
+  label: string;
+}
+
+const NavLink: React.FC<NavLinkProps> = ({ href, icon, label }) => {
   const pathname = usePathname();
 
   const getLinkClassName = (href: string) => {
@@ -17,25 +24,25 @@ export default function SideBar() {
   };
 
   return (
+    <Link href={href} className={`${getLinkClassName(href)} space-x-1`}>
+      <FontAwesomeIcon icon={icon} className="w-5 h-5" />
+      <span>{label}</span>
+    </Link>
+  );
+};
+
+export default function SideBar() {
+  return (
     <div className="border-r border-themeWhite-200 bg-themeWhite-100 box-border w-52 flex flex-col h-screen">
       {/* Upper div with Home and Calendar */}
       <div className="flex flex-col pr-2 py-3 h-full overflow-auto">
-        <Link href='/' className={getLinkClassName('/')}>
-          <FontAwesomeIcon icon={faHouse} className="text-base" />
-          <h4>Home</h4>
-        </Link>
-
-        <Link href='/calendar' className={getLinkClassName('/calendar')}>
-          <FontAwesomeIcon icon={faCalendarDays} className="text-xl" />
-          <h4>Calendar</h4>
-        </Link>
+        <NavLink href="/" icon={faHouse} label="Home" />
+        <NavLink href="/calendar" icon={faCalendarDays} label="Calendar" />
       </div>
       
+      {/* Lower div with Settings */}
       <div className="flex flex-col pr-2 py-3 border-t border-themeWhite-200 h-36">
-        <Link href='/settings' className={getLinkClassName('/settings')}>
-          <FontAwesomeIcon icon={faGear} className="text-lg" />
-          <h4>Settings</h4>
-        </Link>
+        <NavLink href="/settings" icon={faGear} label="Settings" />
       </div>
     </div>
   );
