@@ -1,8 +1,16 @@
+"use client"
+
+import { useEffect } from "react";
+
 export default function Settings() {
-    return (
-      <div>
-        SETTINGS
-      </div>
-    );
-  }
+  useEffect(() => {
+    document.title = 'Settings | Sparqs';
+  }, []);
+
+  return (
+    <div>
+      SETTINGS
+    </div>
+  );
+}
   

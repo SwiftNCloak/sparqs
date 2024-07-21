@@ -2,15 +2,14 @@
 
 import { useEffect } from "react";
 
-export default function Calendar() {
+export default function Login() {
   useEffect(() => {
-    document.title = 'Calendar | Sparqs';
+    document.title = 'Login | Sparqs';
   }, []);
 
   return (
     <div>
-      CALENDAR
+      LOGIN
     </div>
   );
 }
-  

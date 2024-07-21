@@ -1,3 +1,5 @@
+"use client"
+
 import { config } from '@fortawesome/fontawesome-svg-core'
 import '@fortawesome/fontawesome-svg-core/styles.css'
 config.autoAddCss = false
@@ -11,11 +13,6 @@ const inter = Inter({ subsets: ["latin"] });
 // Import the components
 import NavBar from "@/components/NavBar/NavBar";
 import SideBar from "@/components/SideBar/SideBar";
-
-export const metadata: Metadata = {
-  title: "SparQs",
-  description: "Generate ideas!",
-};
 
 export default function RootLayout({
   children,
