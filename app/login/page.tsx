@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { login, signup } from './actions'
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faClose } from "@fortawesome/free-solid-svg-icons";
 
 interface LoginHeaderProps {
   openModal: () => void;
@@ -25,9 +27,6 @@ const LoginForm: React.FC<{ closeModal: () => void }> = ({ closeModal }) => (
     <InputField id="password" type="password" label="Password:" />
     <ButtonMain formAction={login}>Log in</ButtonMain>
     <ButtonMain formAction={signup}>Sign up</ButtonMain>
-    <button type="button" onClick={closeModal} className="text-themeOrange-500 hover:underline">
-      Cancel
-    </button>
   </form>
 );
 
@@ -85,7 +84,12 @@ const Login: React.FC = () => {
       <LoginHeader openModal={openModal} />
       <Modal isOpen={isModalOpen} onClose={closeModal}>
         <div className="w-full rounded-lg bg-themeOrange-200 p-8">
-          <h1 className="text-4xl font-bold mb-6 text-left text-themeOrange-500">Welcome</h1>
+          <div className="flex items-center justify-between mb-6 ">
+            <h1 className="text-4xl font-bold text-left text-themeOrange-500">Welcome</h1>
+            <button type="button" onClick={closeModal} className="text-themeOrange-500 hover:underline">
+              <FontAwesomeIcon icon={faClose} className="w-6 h-6" />
+            </button>
+          </div>
           <LoginForm closeModal={closeModal} />
         </div>
       </Modal>
