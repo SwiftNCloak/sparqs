@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { login, signup } from './actions'
+import { useRouter } from 'next/navigation'
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faClose } from "@fortawesome/free-solid-svg-icons";
 
@@ -21,15 +22,6 @@ const LoginHeader: React.FC<LoginHeaderProps> = ({ openModal }) => (
   </div>
 );
 
-const LoginForm: React.FC<{ closeModal: () => void }> = ({ closeModal }) => (
-  <form className='flex flex-col space-y-4'>
-    <InputField id="email" type="email" label="Email:" />
-    <InputField id="password" type="password" label="Password:" />
-    <ButtonMain formAction={login}>Log in</ButtonMain>
-    <ButtonMain formAction={signup}>Sign up</ButtonMain>
-  </form>
-);
-
 interface InputFieldProps {
   id: string;
   type: string;
@@ -43,19 +35,65 @@ const InputField: React.FC<InputFieldProps> = ({ id, type, label }) => (
   </div>
 );
 
-interface ButtonMainProps {
-  formAction: (formData: FormData) => Promise<void>;
-  children: React.ReactNode;
-}
+const LoginForm: React.FC<{ closeModal: () => void; isLogin: boolean; setIsLogin: (value: boolean) => void }> = ({ closeModal, isLogin, setIsLogin }) => {
+  const [message, setMessage] = useState("");
+  const router = useRouter();
 
-const ButtonMain: React.FC<ButtonMainProps> = ({ children, formAction }) => (
-  <button 
-    formAction={formAction} 
-    className="w-full bg-themeOrange-500 text-white py-2 rounded-md transition-colors hover:bg-themeOrange-600 focus:outline-none focus:ring-2 focus:ring-themeOrange-500 focus:ring-offset-2"
-  >
-    {children}
-  </button>
-);
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    try {
+      const result = isLogin ? await login(formData) : await signup(formData);
+      
+      if (result.success) {
+        if (isLogin) {
+          router.push('/');
+        } else {
+          setMessage(result.message);
+          setIsLogin(true);
+        }
+      } else {
+        setMessage(result.message);
+      }
+    } catch (error) {
+      setMessage("An unexpected error occurred");
+      console.error(error);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className='flex flex-col space-y-4'>
+      {message && <p className={`text-${message.includes('successful') ? 'green' : 'red'}-500`}>{message}</p>}
+      {!isLogin && (
+        <>
+          <InputField id="firstName" type="text" label="First Name:" />
+          <InputField id="middleName" type="text" label="Middle Name:" />
+          <InputField id="lastName" type="text" label="Last Name:" />
+          <InputField id="contactNumber" type="tel" label="Contact Number:" />
+          <InputField id="username" type="text" label="Username:" />
+        </>
+      )}
+      <InputField id="email" type="email" label="Email:" />
+      <InputField id="password" type="password" label="Password:" />
+      <button 
+        type="submit"
+        className="w-full bg-themeOrange-500 text-white py-2 rounded-md transition-colors hover:bg-themeOrange-600 focus:outline-none focus:ring-2 focus:ring-themeOrange-500 focus:ring-offset-2"
+      >
+        {isLogin ? "Log in" : "Sign up"}
+      </button>
+      <p className="text-center">
+        {isLogin ? "New to our platform? " : "Already have an account? "}
+        <button 
+          type="button"
+          onClick={() => setIsLogin(!isLogin)}
+          className="text-themeOrange-500 hover:underline"
+        >
+          {isLogin ? "Sign up" : "Log in"}
+        </button>
+      </p>
+    </form>
+  );
+};
 
 const Modal: React.FC<{ isOpen: boolean; onClose: () => void; children: React.ReactNode }> = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
@@ -71,6 +109,7 @@ const Modal: React.FC<{ isOpen: boolean; onClose: () => void; children: React.Re
 
 const Login: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
 
   useEffect(() => {
     document.title = 'Login | Sparqs';
@@ -85,12 +124,14 @@ const Login: React.FC = () => {
       <Modal isOpen={isModalOpen} onClose={closeModal}>
         <div className="w-full rounded-lg bg-themeOrange-200 p-8">
           <div className="flex items-center justify-between mb-6 ">
-            <h1 className="text-4xl font-bold text-left text-themeOrange-500">Welcome</h1>
+            <h1 className="text-4xl font-bold text-left text-themeOrange-500">
+              {isLogin ? "Welcome Back" : "Sign Up"}
+            </h1>
             <button type="button" onClick={closeModal} className="text-themeOrange-500 hover:underline">
               <FontAwesomeIcon icon={faClose} className="w-6 h-6" />
             </button>
           </div>
-          <LoginForm closeModal={closeModal} />
+          <LoginForm closeModal={closeModal} isLogin={isLogin} setIsLogin={setIsLogin} />
         </div>
       </Modal>
     </div>
