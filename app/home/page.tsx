@@ -104,14 +104,14 @@ export default function Homepage() {
   }
 
   return (
-    <div className="min-h-[500px] w-full p-6">
+    <div className="min-h-[500px] w-full p-2">
       <h2 className="text-2xl font-bold mb-4">Your Bubbles</h2>
       <div className="flex flex-wrap gap-4 mb-6">
         {bubbles.map(bubble => (
           <div
             key={bubble.id}
             onClick={() => router.push(`/bubble/${bubble.id}`)}
-            className="px-4 py-3 border text-white border-gray-300 bg-themeOrange-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer w-72 max-w-72 h-24 max-h-24"
+            className="px-4 py-3 border text-white border-gray-300 bg-themeOrange-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer w-full sm:w-72 h-24 max-h-24"
           >
             <h3 className="font-semibold">{bubble.team_name}</h3>
             <p className="text-sm truncate">{bubble.description}</p>
