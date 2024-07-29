@@ -41,7 +41,7 @@ export default function RootLayout({
           <div className="flex flex-1 overflow-hidden box-border">
             <SideBar />
             <main className="flex-1 p-4 overflow-auto box-border">
-              <NextTopLoader color='#F9B44F' />
+              <NextTopLoader color='#F1F1F1' />
               {children}
             </main>
           </div>
