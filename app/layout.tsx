@@ -11,6 +11,7 @@ import { usePathname } from 'next/navigation'
 // Import the components
 import NavBar from "@/components/NavBar/NavBar";
 import SideBar from "@/components/SideBar/SideBar";
+import NextTopLoader from 'nextjs-toploader';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -40,6 +41,7 @@ export default function RootLayout({
           <div className="flex flex-1 overflow-hidden box-border">
             <SideBar />
             <main className="flex-1 p-4 overflow-auto box-border">
+              <NextTopLoader color='#F9B44F' />
               {children}
             </main>
           </div>
