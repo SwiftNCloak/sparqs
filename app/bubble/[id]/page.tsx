@@ -1,20 +1,34 @@
 "use client"
 
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 
+interface UserData {
+  id: string;
+  firstname: string;
+  lastname: string;
+  middlename: string;
+  email: string;
+  contact: string;
+  username: string;
+  is_premium: boolean;
+}
+
 export default function BubblePage() {
   const params = useParams();
+  const router = useRouter();
   const [bubble, setBubble] = useState(null);
   const [memberCount, setMemberCount] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [members, setMembers] = useState<UserData[]>([]);
   const supabase = createClient();
 
   useEffect(() => {
     fetchBubble();
+    fetchMembers();
   }, [params.id]);
 
   const fetchBubble = async () => {
@@ -27,14 +41,55 @@ export default function BubblePage() {
       setBubble(data);
       setNewTeamName(data.team_name);
       setNewDescription(data.description);
+    } else if (error) {
+      console.error('Error fetching bubble:', error);
     }
 
-    const { count } = await supabase
+    const { count, error: countError } = await supabase
       .from('bubble_members')
       .select('*', { count: 'exact', head: true })
       .eq('bubble_id', params.id);
     
-    setMemberCount(count);
+    if (countError) {
+      console.error('Error fetching member count:', countError);
+    } else {
+      setMemberCount(count || 0);
+    }
+  };
+
+  const fetchMembers = async () => {
+    console.log('Fetching members for bubble:', params.id);
+    const { data: memberData, error: memberError } = await supabase
+      .from('bubble_members')
+      .select('user_id')
+      .eq('bubble_id', params.id);
+
+    if (memberError) {
+      console.error('Error fetching member data:', memberError);
+      return;
+    }
+
+    console.log('Member data:', memberData);
+
+    if (memberData && memberData.length > 0) {
+      const userIds = memberData.map(member => member.user_id);
+      console.log('User IDs:', userIds);
+
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .in('id', userIds);
+
+      if (userError) {
+        console.error('Error fetching user data:', userError);
+      } else {
+        console.log('User data:', userData);
+        setMembers(userData as UserData[]);
+      }
+    } else {
+      console.log('No members found for this bubble');
+      setMembers([]);
+    }
   };
 
   const handleEdit = async () => {
@@ -56,6 +111,33 @@ export default function BubblePage() {
     setIsEditing(!isEditing);
   };
 
+  const handleDelete = async () => {
+    if (confirm("Are you sure you want to delete this bubble? This action cannot be undone.")) {
+      // First, delete all associated bubble members
+      const { error: membersError } = await supabase
+        .from('bubble_members')
+        .delete()
+        .eq('bubble_id', bubble.id);
+  
+      if (membersError) {
+        alert("Failed to delete bubble members: " + membersError.message);
+        return;
+      }
+  
+      // Then, delete the bubble itself
+      const { error: bubbleError } = await supabase
+        .from('bubbles')
+        .delete()
+        .eq('id', bubble.id);
+  
+      if (bubbleError) {
+        alert("Failed to delete bubble: " + bubbleError.message);
+      } else {
+        router.push('/home');
+      }
+    }
+  };
+
   if (!bubble) return <div>Loading...</div>;
 
   return (
@@ -72,12 +154,20 @@ export default function BubblePage() {
           ) : (
             <h1 className="text-3xl font-bold text-white">{bubble.team_name}</h1>
           )}
-          <button 
-            onClick={handleEdit}
-            className="px-4 py-2 bg-themeOrange-200 text-white rounded-md hover:bg-themeOrange-300 transition-colors duration-200 whitespace-nowrap"
-          >
-            {isEditing ? "Save" : "Edit"}
-          </button>
+          <div className="flex space-x-2">
+            <button 
+              onClick={handleEdit}
+              className="px-4 py-2 bg-themeOrange-200 text-white rounded-md hover:bg-themeOrange-300 transition-colors duration-200 whitespace-nowrap"
+            >
+              {isEditing ? "Save" : "Edit"}
+            </button>
+            <button 
+              onClick={handleDelete}
+              className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200 whitespace-nowrap"
+            >
+              Delete
+            </button>
+          </div>
         </div>
         {isEditing ? (
           <textarea 
@@ -91,7 +181,18 @@ export default function BubblePage() {
         )}
         <p className="text-white text-sm">Invite Code: {bubble.code}</p>
       </div>
-      <p className="text-gray-600">Members: {memberCount}</p>
+      <p className="text-xl font-bold text-gray-600">Members: {memberCount}</p>
+      <div>
+        {members.length > 0 ? (
+          <ul className="list-disc list-inside">
+            {members.map((member) => (
+              <li key={member.id} className="text-gray-700">{member.username}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-gray-700">No members found for this bubble.</p>
+        )}
+      </div>
     </div>
   );
 }

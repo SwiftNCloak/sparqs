@@ -4,8 +4,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEllipsis, faPencilAlt, faTrash } from "@fortawesome/free-solid-svg-icons";
+
 export default function Homepage() {
   const [bubbles, setBubbles] = useState([]);
+  const [openMenuId, setOpenMenuId] = useState(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -87,6 +91,44 @@ export default function Homepage() {
     }
   };
 
+  const handleMenuClick = (e, id) => {
+    e.stopPropagation();
+    setOpenMenuId(openMenuId === id ? null : id);
+  };
+
+  const handleEdit = (e, id) => {
+    e.stopPropagation();
+    router.push(`/bubble/${id}`);
+  };
+
+  const handleDelete = async (e, id) => {
+    e.stopPropagation();
+    if (confirm("Are you sure you want to delete this bubble? This action cannot be undone.")) {
+      // First, delete all associated bubble members
+      const { error: membersError } = await supabase
+        .from('bubble_members')
+        .delete()
+        .eq('bubble_id', id);
+  
+      if (membersError) {
+        alert("Failed to delete bubble members: " + membersError.message);
+        return;
+      }
+  
+      // Then, delete the bubble itself
+      const { error: bubbleError } = await supabase
+        .from('bubbles')
+        .delete()
+        .eq('id', id);
+  
+      if (bubbleError) {
+        alert("Failed to delete bubble: " + bubbleError.message);
+      } else {
+        fetchBubbles();
+      }
+    }
+  };
+
   if (bubbles.length === 0) {
     return (
       <div className="min-h-[500px] w-full flex flex-col items-center justify-center">
@@ -111,9 +153,38 @@ export default function Homepage() {
           <div
             key={bubble.id}
             onClick={() => router.push(`/bubble/${bubble.id}`)}
-            className="px-4 py-3 border text-white border-gray-300 bg-themeOrange-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer w-full sm:w-72 h-24 max-h-24"
+            className="relative px-4 py-3 border text-white border-gray-300 bg-themeOrange-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer w-full sm:w-72 h-24 max-h-24"
           >
-            <h3 className="font-semibold">{bubble.team_name}</h3>
+            <div className="items-center justify-between flex">
+              <h3 className="font-semibold truncate">{bubble.team_name}</h3>
+              <div className="relative">
+                <FontAwesomeIcon
+                  icon={faEllipsis}
+                  className="w-4 h-4 cursor-pointer"
+                  onClick={(e) => handleMenuClick(e, bubble.id)}
+                />
+                {openMenuId === bubble.id && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                    <div className="py-1">
+                      <button
+                        onClick={(e) => handleEdit(e, bubble.id)}
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                      >
+                        <FontAwesomeIcon icon={faPencilAlt} className="mr-2" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={(e) => handleDelete(e, bubble.id)}
+                        className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
+                      >
+                        <FontAwesomeIcon icon={faTrash} className="mr-2" />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
             <p className="text-sm truncate">{bubble.description}</p>
           </div>
         ))}

@@ -1,7 +1,6 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
-import { v4 as uuidv4 } from 'uuid'
 
 export async function login(formData: FormData) {
   const supabase = createClient()
@@ -41,11 +40,10 @@ export async function signup(formData: FormData) {
   }
 
   if (authData.user) {
-    const userId = uuidv4()
     const { error: insertError } = await supabase
       .from('users')
       .insert({ 
-        id: userId,
+        id: authData.user.id,
         firstname,
         lastname,
         middlename,
