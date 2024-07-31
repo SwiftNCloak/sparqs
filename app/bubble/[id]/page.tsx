@@ -159,11 +159,6 @@ export default function BubblePage() {
   };
 
   const handleLeave = async () => {
-    if (isCreator) {
-      alert("As the creator, you cannot leave the bubble. You can only delete it.");
-      return;
-    }
-
     if (confirm("Are you sure you want to leave this bubble?")) {
       const { error } = await supabase
         .from('bubble_members')
@@ -180,11 +175,6 @@ export default function BubblePage() {
   };
 
   const handleRemoveMember = async (memberId: string) => {
-    if (memberId === bubble?.created_by) {
-      alert("The creator cannot be removed from the bubble.");
-      return;
-    }
-
     if (confirm("Are you sure you want to remove this member from the bubble?")) {
       const { error } = await supabase
         .from('bubble_members')
