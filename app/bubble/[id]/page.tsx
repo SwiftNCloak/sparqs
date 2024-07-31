@@ -159,6 +159,11 @@ export default function BubblePage() {
   };
 
   const handleLeave = async () => {
+    if (isCreator) {
+      alert("As the creator, you cannot leave the bubble. You can only delete it.");
+      return;
+    }
+
     if (confirm("Are you sure you want to leave this bubble?")) {
       const { error } = await supabase
         .from('bubble_members')
@@ -173,6 +178,30 @@ export default function BubblePage() {
       }
     }
   };
+
+  const handleRemoveMember = async (memberId: string) => {
+    if (memberId === bubble?.created_by) {
+      alert("The creator cannot be removed from the bubble.");
+      return;
+    }
+
+    if (confirm("Are you sure you want to remove this member from the bubble?")) {
+      const { error } = await supabase
+        .from('bubble_members')
+        .delete()
+        .eq('bubble_id', bubble?.id)
+        .eq('user_id', memberId);
+
+      if (error) {
+        alert("Failed to remove member: " + error.message);
+      } else {
+        fetchMembers();
+        setMemberCount(prevCount => prevCount - 1);
+      }
+    }
+  };
+
+  const isCreator = currentUser && bubble && currentUser.id === bubble.created_by;
 
   if (!bubble) return <div>Loading...</div>;
 
@@ -190,7 +219,7 @@ export default function BubblePage() {
           ) : (
             <h1 className="text-3xl font-bold text-white">{bubble.team_name}</h1>
           )}
-          {currentUser && currentUser.id === bubble.created_by ? (
+          {isCreator ? (
             <div className="flex space-x-2">
               <button 
                 onClick={handleEdit}
@@ -231,8 +260,16 @@ export default function BubblePage() {
         {members.length > 0 ? (
           <ul className="list-disc list-inside">
             {members.map((member) => (
-              <li key={member.id} className="text-gray-700">
-                {member.username} {member.isCreator && "(Creator)"}
+              <li key={member.id} className="text-gray-700 flex items-center justify-between">
+                <span>{member.username} {member.isCreator && "(Creator)"}</span>
+                {isCreator && !member.isCreator && (
+                  <button 
+                    onClick={() => handleRemoveMember(member.id)}
+                    className="px-2 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200 text-sm"
+                  >
+                    Remove
+                  </button>
+                )}
               </li>
             ))}
           </ul>

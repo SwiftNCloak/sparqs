@@ -5,18 +5,25 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEllipsis, faPencilAlt, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { faEllipsis, faPencilAlt, faTrash, faSignOutAlt } from "@fortawesome/free-solid-svg-icons";
 
 export default function Homepage() {
   const [bubbles, setBubbles] = useState([]);
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
     document.title = 'Home | Sparqs';
+    fetchCurrentUser();
     fetchBubbles();
   }, []);
+
+  const fetchCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUser(user);
+  };
 
   const fetchBubbles = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -29,7 +36,8 @@ export default function Homepage() {
             id,
             team_name,
             description,
-            code
+            code,
+            created_by
           )
         `)
         .eq('user_id', user.id);
@@ -38,8 +46,7 @@ export default function Homepage() {
   };
 
   const createBubble = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
+    if (currentUser) {
       const teamName = prompt("Enter team name:");
       const description = prompt("Enter description:");
       const code = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -50,7 +57,7 @@ export default function Homepage() {
           team_name: teamName,
           description: description,
           code,
-          created_by: user.id
+          created_by: currentUser.id
         })
         .select()
         .single();
@@ -58,7 +65,7 @@ export default function Homepage() {
       if (data) {
         await supabase.from('bubble_members').insert({
           bubble_id: data.id,
-          user_id: user.id
+          user_id: currentUser.id
         });
         router.push(`/bubble/${data.id}`);
       }
@@ -66,9 +73,8 @@ export default function Homepage() {
   };
 
   const joinBubble = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     const code = prompt("Enter bubble code:");
-    if (code && user) {
+    if (code && currentUser) {
       const { data, error } = await supabase
         .from('bubbles')
         .select('id')
@@ -78,7 +84,7 @@ export default function Homepage() {
       if (data) {
         const { error } = await supabase.from('bubble_members').insert({
           bubble_id: data.id,
-          user_id: user.id
+          user_id: currentUser.id
         });
         if (!error) {
           router.push(`/bubble/${data.id}`);
@@ -104,7 +110,6 @@ export default function Homepage() {
   const handleDelete = async (e, id) => {
     e.stopPropagation();
     if (confirm("Are you sure you want to delete this bubble? This action cannot be undone.")) {
-      // First, delete all associated bubble members
       const { error: membersError } = await supabase
         .from('bubble_members')
         .delete()
@@ -115,7 +120,6 @@ export default function Homepage() {
         return;
       }
   
-      // Then, delete the bubble itself
       const { error: bubbleError } = await supabase
         .from('bubbles')
         .delete()
@@ -123,6 +127,23 @@ export default function Homepage() {
   
       if (bubbleError) {
         alert("Failed to delete bubble: " + bubbleError.message);
+      } else {
+        fetchBubbles();
+      }
+    }
+  };
+
+  const handleLeave = async (e, id) => {
+    e.stopPropagation();
+    if (confirm("Are you sure you want to leave this bubble?")) {
+      const { error } = await supabase
+        .from('bubble_members')
+        .delete()
+        .eq('bubble_id', id)
+        .eq('user_id', currentUser.id);
+
+      if (error) {
+        alert("Failed to leave bubble: " + error.message);
       } else {
         fetchBubbles();
       }
@@ -166,20 +187,32 @@ export default function Homepage() {
                 {openMenuId === bubble.id && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
                     <div className="py-1">
-                      <button
-                        onClick={(e) => handleEdit(e, bubble.id)}
-                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                      >
-                        <FontAwesomeIcon icon={faPencilAlt} className="mr-2" />
-                        Edit
-                      </button>
-                      <button
-                        onClick={(e) => handleDelete(e, bubble.id)}
-                        className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
-                      >
-                        <FontAwesomeIcon icon={faTrash} className="mr-2" />
-                        Delete
-                      </button>
+                      {currentUser && currentUser.id === bubble.created_by ? (
+                        <>
+                          <button
+                            onClick={(e) => handleEdit(e, bubble.id)}
+                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                          >
+                            <FontAwesomeIcon icon={faPencilAlt} className="mr-2" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={(e) => handleDelete(e, bubble.id)}
+                            className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
+                          >
+                            <FontAwesomeIcon icon={faTrash} className="mr-2" />
+                            Delete
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={(e) => handleLeave(e, bubble.id)}
+                          className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
+                        >
+                          <FontAwesomeIcon icon={faSignOutAlt} className="mr-2" />
+                          Leave
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
