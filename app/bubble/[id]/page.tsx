@@ -13,28 +13,44 @@ interface UserData {
   contact: string;
   username: string;
   is_premium: boolean;
+  isCreator?: boolean;
+}
+
+interface BubbleData {
+  id: string;
+  team_name: string;
+  description: string;
+  code: string;
+  created_by: string;
 }
 
 export default function BubblePage() {
   const params = useParams();
   const router = useRouter();
-  const [bubble, setBubble] = useState(null);
+  const [bubble, setBubble] = useState<BubbleData | null>(null);
   const [memberCount, setMemberCount] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [members, setMembers] = useState<UserData[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const supabase = createClient();
 
   useEffect(() => {
+    fetchCurrentUser();
     fetchBubble();
     fetchMembers();
   }, [params.id]);
 
+  const fetchCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUser(user);
+  };
+
   const fetchBubble = async () => {
     const { data, error } = await supabase
       .from('bubbles')
-      .select('*')
+      .select('*, created_by')
       .eq('id', params.id)
       .single();
     if (data) {
@@ -84,7 +100,11 @@ export default function BubblePage() {
         console.error('Error fetching user data:', userError);
       } else {
         console.log('User data:', userData);
-        setMembers(userData as UserData[]);
+        const membersWithCreatorTag = userData.map(user => ({
+          ...user,
+          isCreator: user.id === bubble?.created_by
+        }));
+        setMembers(membersWithCreatorTag);
       }
     } else {
       console.log('No members found for this bubble');
@@ -100,7 +120,7 @@ export default function BubblePage() {
           team_name: newTeamName,
           description: newDescription
         })
-        .eq('id', bubble.id);
+        .eq('id', bubble?.id);
       
       if (!error) {
         fetchBubble();
@@ -117,7 +137,7 @@ export default function BubblePage() {
       const { error: membersError } = await supabase
         .from('bubble_members')
         .delete()
-        .eq('bubble_id', bubble.id);
+        .eq('bubble_id', bubble?.id);
   
       if (membersError) {
         alert("Failed to delete bubble members: " + membersError.message);
@@ -128,10 +148,26 @@ export default function BubblePage() {
       const { error: bubbleError } = await supabase
         .from('bubbles')
         .delete()
-        .eq('id', bubble.id);
+        .eq('id', bubble?.id);
   
       if (bubbleError) {
         alert("Failed to delete bubble: " + bubbleError.message);
+      } else {
+        router.push('/home');
+      }
+    }
+  };
+
+  const handleLeave = async () => {
+    if (confirm("Are you sure you want to leave this bubble?")) {
+      const { error } = await supabase
+        .from('bubble_members')
+        .delete()
+        .eq('bubble_id', bubble?.id)
+        .eq('user_id', currentUser.id);
+
+      if (error) {
+        alert("Failed to leave bubble: " + error.message);
       } else {
         router.push('/home');
       }
@@ -154,27 +190,36 @@ export default function BubblePage() {
           ) : (
             <h1 className="text-3xl font-bold text-white">{bubble.team_name}</h1>
           )}
-          <div className="flex space-x-2">
+          {currentUser && currentUser.id === bubble.created_by ? (
+            <div className="flex space-x-2">
+              <button 
+                onClick={handleEdit}
+                className="px-4 py-2 bg-themeOrange-200 text-white rounded-md hover:bg-themeOrange-300 transition-colors duration-200 whitespace-nowrap"
+              >
+                {isEditing ? "Save" : "Edit"}
+              </button>
+              <button 
+                onClick={handleDelete}
+                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200 whitespace-nowrap"
+              >
+                Delete
+              </button>
+            </div>
+          ) : (
             <button 
-              onClick={handleEdit}
-              className="px-4 py-2 bg-themeOrange-200 text-white rounded-md hover:bg-themeOrange-300 transition-colors duration-200 whitespace-nowrap"
-            >
-              {isEditing ? "Save" : "Edit"}
-            </button>
-            <button 
-              onClick={handleDelete}
+              onClick={handleLeave}
               className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200 whitespace-nowrap"
             >
-              Delete
+              Leave
             </button>
-          </div>
+          )}
         </div>
         {isEditing ? (
           <textarea 
             value={newDescription} 
             onChange={(e) => setNewDescription(e.target.value)}
             className="w-full bg-transparent border-b-2 border-white focus:outline-none text-white mb-2 resize-none"
-            rows="3"
+            rows={3}
           />
         ) : (
           <p className="text-white mb-2">{bubble.description}</p>
@@ -186,7 +231,9 @@ export default function BubblePage() {
         {members.length > 0 ? (
           <ul className="list-disc list-inside">
             {members.map((member) => (
-              <li key={member.id} className="text-gray-700">{member.username}</li>
+              <li key={member.id} className="text-gray-700">
+                {member.username} {member.isCreator && "(Creator)"}
+              </li>
             ))}
           </ul>
         ) : (
