@@ -24,6 +24,7 @@ interface BubbleData {
   description: string;
   code: string;
   created_by: string;
+  is_started: boolean;
 }
 
 export default function BubblePage() {
@@ -214,9 +215,20 @@ export default function BubblePage() {
     }
   };
 
-  const handleStart = () => {
-    // Your logic to start the bubble
-    alert("Bubble started!");
+  const handleStart = async () => {
+    const { data, error } = await supabase
+      .from('bubbles')
+      .update({ is_started: true })
+      .eq('id', bubble?.id)
+      .select()
+      .single();
+
+    if (error) {
+      alert("Failed to start bubble: " + error.message);
+    } else {
+      setBubble(data);
+      router.push(`/bubble/${bubble?.id}/tags`);
+    }
   };
 
   const handleMenuClick = (e) => {
@@ -287,13 +299,15 @@ export default function BubblePage() {
                         <FontAwesomeIcon icon={faTrash} className="mr-2" />
                         Delete
                       </button>
-                      <button
-                        onClick={handleStartClick}
-                        className="flex items-center px-4 py-2 text-sm text-green-600 hover:bg-gray-100 w-full text-left"
-                      >
-                        <FontAwesomeIcon icon={faPlay} className="mr-2" />
-                        Start
-                      </button>
+                      {!bubble.is_started && (
+                        <button
+                          onClick={handleStartClick}
+                          className="flex items-center px-4 py-2 text-sm text-green-600 hover:bg-gray-100 w-full text-left"
+                        >
+                          <FontAwesomeIcon icon={faPlay} className="mr-2" />
+                          Start
+                        </button>
+                      )}
                     </>
                   ) : (
                     <button
@@ -341,6 +355,24 @@ export default function BubblePage() {
           </ul>
         ) : (
           <p className="text-gray-700">No members found for this bubble.</p>
+        )}
+      </div>
+      <div className="mt-4">
+        {isCreator && !bubble.is_started && (
+          <button
+            onClick={handleStart}
+            className="bg-green-500 text-white px-4 py-2 rounded mr-2"
+          >
+            Start Bubble
+          </button>
+        )}
+        {bubble.is_started && (
+          <button
+            onClick={() => router.push(`/bubble/${bubble.id}/tags`)}
+            className="bg-blue-500 text-white px-4 py-2 rounded"
+          >
+            Go to Tags
+          </button>
         )}
       </div>
     </div>
