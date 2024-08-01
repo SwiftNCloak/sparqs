@@ -1,7 +1,3 @@
-// - it will retrieve the tags from tags page... and database
-// - looping structure until 1 final idea remains
-// - final idea is then passed to the final page
-
 "use client"
 
 import { useEffect, useState } from 'react';
@@ -18,9 +14,7 @@ interface Tag {
 interface BubbleData {
   id: string;
   team_name: string;
-  description: string;
-  is_started: boolean;
-  voting_phase: 'not_started' | 'first_round' | 'second_round' | 'completed';
+  voting_phase: 'first_round' | 'second_round' | 'completed';
 }
 
 export default function VotingPage() {
@@ -29,20 +23,18 @@ export default function VotingPage() {
   const [bubble, setBubble] = useState<BubbleData | null>(null);
   const [tags, setTags] = useState<Tag[]>([]);
   const [isCreator, setIsCreator] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
   const supabase = createClient();
 
   useEffect(() => {
     fetchBubbleData();
     fetchTags();
     checkIfCreator();
-    fetchCurrentUser();
   }, [params.id]);
 
   const fetchBubbleData = async () => {
     const { data, error } = await supabase
       .from('bubbles')
-      .select('*')
+      .select('id, team_name, voting_phase')
       .eq('id', params.id)
       .single();
     if (data) setBubble(data);
@@ -61,93 +53,56 @@ export default function VotingPage() {
   const checkIfCreator = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user && bubble) {
-      setIsCreator(user.id === bubble.created_by);
-    }
-  };
-
-  const fetchCurrentUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setCurrentUser(user);
-  };
-
-  const handleStartVoting = async () => {
-    const { error } = await supabase
-      .from('bubbles')
-      .update({ voting_phase: 'first_round' })
-      .eq('id', params.id);
-    
-    if (!error) {
-      setBubble({ ...bubble!, voting_phase: 'first_round' });
-    } else {
-      console.error('Error starting voting:', error);
+      const { data } = await supabase
+        .from('bubbles')
+        .select('created_by')
+        .eq('id', params.id)
+        .single();
+      setIsCreator(user.id === data?.created_by);
     }
   };
 
   const handleVote = async (tagId: string, voteType: 'like' | 'dislike') => {
-    const updatedTags = tags.map(tag => {
-      if (tag.id === tagId) {
-        return {
-          ...tag,
-          [voteType]: tag[voteType] + 1
-        };
-      }
-      return tag;
-    });
-    setTags(updatedTags);
-
-    // In a real application, you'd want to save this vote to the database
-    // and ensure each user can only vote once per tag.
+    setTags(tags.map(tag => 
+      tag.id === tagId ? {...tag, [voteType]: tag[voteType] + 1} : tag
+    ));
+    // In a real app, you'd save this vote to the database
   };
 
   const handleEndFirstRound = async () => {
     const likedTags = tags.filter(tag => tag.likes > tag.dislikes);
     setTags(likedTags.map(tag => ({ ...tag, likes: 0, dislikes: 0 })));
-
-    const { error } = await supabase
-      .from('bubbles')
-      .update({ voting_phase: 'second_round' })
-      .eq('id', params.id);
-    
-    if (!error) {
-      setBubble({ ...bubble!, voting_phase: 'second_round' });
-    } else {
-      console.error('Error ending first round:', error);
-    }
+    await updateVotingPhase('second_round');
   };
 
   const handleEndSecondRound = async () => {
-    const winningTag = tags.reduce((prev, current) => 
-      (prev.likes > current.likes) ? prev : current
-    );
+    await updateVotingPhase('completed');
+  };
 
+  const updateVotingPhase = async (phase: 'first_round' | 'second_round' | 'completed') => {
     const { error } = await supabase
       .from('bubbles')
-      .update({ voting_phase: 'completed', winning_tag: winningTag.id })
+      .update({ voting_phase: phase })
       .eq('id', params.id);
     
     if (!error) {
-      setBubble({ ...bubble!, voting_phase: 'completed' });
+      setBubble(prev => prev ? {...prev, voting_phase: phase} : null);
     } else {
-      console.error('Error ending second round:', error);
+      console.error('Error updating voting phase:', error);
     }
   };
 
   if (!bubble) return <div>Loading...</div>;
 
+  const winningTag = tags.reduce((prev, current) => 
+    (prev.likes > current.likes) ? prev : current
+  );
+
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">{bubble.team_name} - Voting</h1>
+      <h1 className="text-2xl font-bold mb-4">{bubble.team_name} - Voting Session</h1>
       
-      {bubble.voting_phase === 'not_started' && isCreator && (
-        <button
-          onClick={handleStartVoting}
-          className="bg-green-500 text-white px-4 py-2 rounded"
-        >
-          Start Voting
-        </button>
-      )}
-
-      {(bubble.voting_phase === 'first_round' || bubble.voting_phase === 'second_round') && (
+      {bubble.voting_phase !== 'completed' && (
         <>
           <h2 className="text-xl font-bold mb-2">
             {bubble.voting_phase === 'first_round' ? 'First' : 'Final'} Voting Round
@@ -188,7 +143,15 @@ export default function VotingPage() {
       {bubble.voting_phase === 'completed' && (
         <div>
           <h2 className="text-xl font-bold mb-2">Voting Completed</h2>
-          <p>The winning tag is: {tags.find(tag => tag.id === bubble.winning_tag)?.name}</p>
+          <p>The winning tag is: {winningTag.name} with {winningTag.likes} likes</p>
+          {isCreator && (
+            <button
+              onClick={() => router.push(`/bubble/${params.id}`)}
+              className="bg-green-500 text-white px-4 py-2 rounded mt-4"
+            >
+              Done
+            </button>
+          )}
         </div>
       )}
     </div>
