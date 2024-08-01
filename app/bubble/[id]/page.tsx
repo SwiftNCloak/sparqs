@@ -3,6 +3,8 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEllipsis, faPencilAlt, faTrash, faSignOutAlt, faPlay } from "@fortawesome/free-solid-svg-icons";
 
 interface UserData {
   id: string;
@@ -34,13 +36,43 @@ export default function BubblePage() {
   const [newDescription, setNewDescription] = useState('');
   const [members, setMembers] = useState<UserData[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
     fetchCurrentUser();
     fetchBubble();
     fetchMembers();
+
+    const unsubscribe = subscribeToMemberChanges();
+
+    return () => {
+      unsubscribe();
+    };
   }, [params.id]);
+
+  const subscribeToMemberChanges = () => {
+    const subscription = supabase
+      .channel('bubble_members_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bubble_members',
+          filter: `bubble_id=eq.${params.id}`,
+        },
+        (payload) => {
+          console.log('Change received!', payload);
+          fetchMembers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  };
 
   const fetchCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -60,24 +92,13 @@ export default function BubblePage() {
     } else if (error) {
       console.error('Error fetching bubble:', error);
     }
-
-    const { count, error: countError } = await supabase
-      .from('bubble_members')
-      .select('*', { count: 'exact', head: true })
-      .eq('bubble_id', params.id);
-    
-    if (countError) {
-      console.error('Error fetching member count:', countError);
-    } else {
-      setMemberCount(count || 0);
-    }
   };
 
   const fetchMembers = async () => {
     console.log('Fetching members for bubble:', params.id);
-    const { data: memberData, error: memberError } = await supabase
+    const { data: memberData, error: memberError, count } = await supabase
       .from('bubble_members')
-      .select('user_id')
+      .select('user_id', { count: 'exact' })
       .eq('bubble_id', params.id);
 
     if (memberError) {
@@ -100,15 +121,18 @@ export default function BubblePage() {
         console.error('Error fetching user data:', userError);
       } else {
         console.log('User data:', userData);
-        const membersWithCreatorTag = userData.map(user => ({
+        const membersWithRoles = userData.map(user => ({
           ...user,
-          isCreator: user.id === bubble?.created_by
+          isCreator: user.id === bubble?.created_by,
+          role: user.id === bubble?.created_by ? "Owner" : "Member"
         }));
-        setMembers(membersWithCreatorTag);
+        setMembers(membersWithRoles);
+        setMemberCount(count || 0);
       }
     } else {
       console.log('No members found for this bubble');
       setMembers([]);
+      setMemberCount(0);
     }
   };
 
@@ -129,11 +153,11 @@ export default function BubblePage() {
       }
     }
     setIsEditing(!isEditing);
+    setIsMenuOpen(false);
   };
 
   const handleDelete = async () => {
     if (confirm("Are you sure you want to delete this bubble? This action cannot be undone.")) {
-      // First, delete all associated bubble members
       const { error: membersError } = await supabase
         .from('bubble_members')
         .delete()
@@ -144,7 +168,6 @@ export default function BubblePage() {
         return;
       }
   
-      // Then, delete the bubble itself
       const { error: bubbleError } = await supabase
         .from('bubbles')
         .delete()
@@ -185,10 +208,40 @@ export default function BubblePage() {
       if (error) {
         alert("Failed to remove member: " + error.message);
       } else {
-        fetchMembers();
-        setMemberCount(prevCount => prevCount - 1);
+        console.log("Member removed successfully");
+        fetchMembers(); // Refresh members list after removal
       }
     }
+  };
+
+  const handleStart = () => {
+    // Your logic to start the bubble
+    alert("Bubble started!");
+  };
+
+  const handleMenuClick = (e) => {
+    e.stopPropagation();
+    setIsMenuOpen(!isMenuOpen);
+  };
+
+  const handleEditClick = (e) => {
+    e.stopPropagation();
+    handleEdit();
+  };
+
+  const handleDeleteClick = (e) => {
+    e.stopPropagation();
+    handleDelete();
+  };
+
+  const handleLeaveClick = (e) => {
+    e.stopPropagation();
+    handleLeave();
+  };
+
+  const handleStartClick = (e) => {
+    e.stopPropagation();
+    handleStart();
   };
 
   const isCreator = currentUser && bubble && currentUser.id === bubble.created_by;
@@ -209,29 +262,52 @@ export default function BubblePage() {
           ) : (
             <h1 className="text-3xl font-bold text-white">{bubble.team_name}</h1>
           )}
-          {isCreator ? (
-            <div className="flex space-x-2">
-              <button 
-                onClick={handleEdit}
-                className="px-4 py-2 bg-themeOrange-200 text-white rounded-md hover:bg-themeOrange-300 transition-colors duration-200 whitespace-nowrap"
-              >
-                {isEditing ? "Save" : "Edit"}
-              </button>
-              <button 
-                onClick={handleDelete}
-                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200 whitespace-nowrap"
-              >
-                Delete
-              </button>
-            </div>
-          ) : (
-            <button 
-              onClick={handleLeave}
-              className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200 whitespace-nowrap"
-            >
-              Leave
-            </button>
-          )}
+          <div className="relative">
+            <FontAwesomeIcon
+              icon={faEllipsis}
+              className="w-6 h-6 cursor-pointer text-white"
+              onClick={handleMenuClick}
+            />
+            {isMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                <div className="py-1">
+                  {isCreator ? (
+                    <>
+                      <button
+                        onClick={handleEditClick}
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                      >
+                        <FontAwesomeIcon icon={faPencilAlt} className="mr-2" />
+                        {isEditing ? "Save" : "Edit"}
+                      </button>
+                      <button
+                        onClick={handleDeleteClick}
+                        className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
+                      >
+                        <FontAwesomeIcon icon={faTrash} className="mr-2" />
+                        Delete
+                      </button>
+                      <button
+                        onClick={handleStartClick}
+                        className="flex items-center px-4 py-2 text-sm text-green-600 hover:bg-gray-100 w-full text-left"
+                      >
+                        <FontAwesomeIcon icon={faPlay} className="mr-2" />
+                        Start
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={handleLeaveClick}
+                      className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
+                    >
+                      <FontAwesomeIcon icon={faSignOutAlt} className="mr-2" />
+                      Leave
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         {isEditing ? (
           <textarea 
@@ -251,7 +327,7 @@ export default function BubblePage() {
           <ul className="list-disc list-inside">
             {members.map((member) => (
               <li key={member.id} className="text-gray-700 flex items-center justify-between">
-                <span>{member.username} {member.isCreator && "(Creator)"}</span>
+                <span>{`${member.username} (${member.role})`}</span>
                 {isCreator && !member.isCreator && (
                   <button 
                     onClick={() => handleRemoveMember(member.id)}

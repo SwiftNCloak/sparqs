@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEllipsis, faPencilAlt, faTrash, faSignOutAlt } from "@fortawesome/free-solid-svg-icons";
+import { faEllipsis, faPencilAlt, faTrash, faSignOutAlt, faPlus, faTimes } from "@fortawesome/free-solid-svg-icons";
 
 export default function Homepage() {
   const [bubbles, setBubbles] = useState([]);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [isExpanded, setIsExpanded] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -150,6 +151,10 @@ export default function Homepage() {
     }
   };
 
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+  };
+
   if (bubbles.length === 0) {
     return (
       <div className="min-h-[500px] w-full flex flex-col items-center justify-center">
@@ -167,7 +172,7 @@ export default function Homepage() {
   }
 
   return (
-    <div className="min-h-[500px] w-full p-2">
+    <div className="min-h-[500px] w-full p-2 relative">
       <h2 className="text-2xl font-bold mb-4">Your Bubbles</h2>
       <div className="flex flex-wrap gap-4 mb-6">
         {bubbles.map(bubble => (
@@ -222,12 +227,28 @@ export default function Homepage() {
           </div>
         ))}
       </div>
-      <div className="flex space-x-4">
-        <button onClick={createBubble} className="px-4 py-2 rounded-md bg-[#8cb9bd] text-white hover:bg-[#7b9ea1] transition-colors duration-200">
-          Create bubble
-        </button>
-        <button onClick={joinBubble} className="px-4 py-2 rounded-md bg-[#8cb9bd] text-white hover:bg-[#7b9ea1] transition-colors duration-200">
-          Join bubble
+      <div className="fixed bottom-4 right-4 flex items-center">
+        {isExpanded && (
+          <div className="flex space-x-2 mr-4">
+            <button
+              onClick={createBubble}
+              className="px-4 py-2 rounded-md bg-[#8cb9bd] text-white hover:bg-[#7b9ea1] transition-colors duration-200"
+            >
+              Create bubble
+            </button>
+            <button
+              onClick={joinBubble}
+              className="px-4 py-2 rounded-md bg-[#8cb9bd] text-white hover:bg-[#7b9ea1] transition-colors duration-200"
+            >
+              Join bubble
+            </button>
+          </div>
+        )}
+        <button
+          onClick={toggleExpand}
+          className="w-12 h-12 rounded-full bg-[#8cb9bd] text-white hover:bg-[#7b9ea1] transition-colors duration-200"
+        >
+          <FontAwesomeIcon icon={isExpanded ? faTimes : faPlus} />
         </button>
       </div>
     </div>
