@@ -61,7 +61,7 @@ export default function BubbleTagsPage() {
     if (newTag.trim() && tags.length < 10) {
       const { data, error } = await supabase
         .from('bubble_tags')
-        .insert({ bubble_id: params.id, name: newTag.trim() })
+        .insert({ bubble_id: params.id, name: newTag.trim(), phase: 1 })
         .select()
         .single();
       
