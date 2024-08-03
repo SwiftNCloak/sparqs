@@ -26,6 +26,9 @@ export default function RootLayout({
   if (isLoginPage) {
     return (
       <html lang="en">
+        <head>
+          <link rel="icon" href="/image/sparqs_logo.png" />
+        </head>
         <body className={inter.className}>
           {children}
         </body>
@@ -35,6 +38,9 @@ export default function RootLayout({
 
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" href="/image/sparqs_logo.png" />
+      </head>
       <body className={inter.className}>
         <div className="flex flex-col h-screen box-border">
           <NavBar />
