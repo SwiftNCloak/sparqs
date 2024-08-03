@@ -357,7 +357,7 @@ export default function BubblePage() {
           <p className="text-gray-700">No members found for this bubble.</p>
         )}
       </div>
-      <div className="mt-4">
+      <div className="mt-4 space-x-3">
         {isCreator && !bubble.is_started && (
           <button
             onClick={handleStart}
@@ -376,7 +376,7 @@ export default function BubblePage() {
         )}
 
         <button
-          onClick={() => router.push(`/bubble/${bubble.id}/tags`)}
+          onClick={() => router.push(`/bubble/${bubble.id}/dashboard`)}
           className="bg-green-500 text-white px-4 py-2 rounded"
         >
           Go to Dashboard
