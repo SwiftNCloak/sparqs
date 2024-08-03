@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 
@@ -34,7 +34,7 @@ export default function BubbleTagVotingPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isCreator, setIsCreator] = useState(false);
   const [currentPhase, setCurrentPhase] = useState(1);
-  const [phaseTagCounts, setPhaseTagCounts] = useState<number[]>([]);
+  const [initialTagCount, setInitialTagCount] = useState(0);
   const supabase = createClient();
 
   useEffect(() => {
@@ -49,10 +49,10 @@ export default function BubbleTagVotingPage() {
   }, [bubble]);
 
   useEffect(() => {
-    if (bubble && phaseTagCounts.length > 0) {
+    if (bubble) {
       fetchTags();
     }
-  }, [bubble, currentPhase, phaseTagCounts]);
+  }, [bubble, currentPhase]);
 
   useEffect(() => {
     if (bubble && currentUserId) {
@@ -131,10 +131,14 @@ export default function BubbleTagVotingPage() {
       return;
     }
 
-    let remainingTags = count || 0;
-    const counts: number[] = [10, 5, 3, 1]; // Adjust based on your requirements
-      
-    setPhaseTagCounts(counts);
+    setInitialTagCount(count || 0);
+  };
+
+  const getTargetTagCount = (currentCount: number): number => {
+    if (currentCount <= 3) return 1;
+    if (currentCount <= 5) return 3;
+    if (currentCount <= 10) return 5;
+    return Math.ceil(currentCount / 2);
   };
 
   const handleVote = async (tagId: string) => {
@@ -177,18 +181,36 @@ export default function BubbleTagVotingPage() {
   const handleEndPhase = async () => {
     if (!bubble) return;
 
-    const nextPhase = currentPhase + 1;
-    const maxPhase = phaseTagCounts.length;
-
-    if (nextPhase > maxPhase) {
-      console.log('All phases completed');
+    const sortedTags = tags.filter(tag => tag.votes > 0).sort((a, b) => b.votes - a.votes);
+    
+    if (sortedTags.length <= 1) {
       await handleFinalPhase();
       return;
     }
 
-    const sortedTags = tags.sort((a, b) => b.votes - a.votes);
-    const topTagsCount = phaseTagCounts[nextPhase - 1];
-    const topTags = sortedTags.slice(0, topTagsCount);
+    const targetTagCount = getTargetTagCount(sortedTags.length);
+    
+    // Special case for the final 3 tags
+    if (sortedTags.length === 3 && targetTagCount === 1) {
+      const [firstPlace, secondPlace] = sortedTags;
+      
+      if (firstPlace.votes === secondPlace.votes) {
+        // There's a tie, so we'll restart the voting for these 3 tags
+        await restartVotingForTags(sortedTags);
+        return;
+      }
+    }
+
+    let topTags = sortedTags.slice(0, targetTagCount);
+    
+    // Check for ties at the cutoff point
+    if (topTags.length > 0) {
+      const lastIncludedVoteCount = topTags[topTags.length - 1].votes;
+      const tiedTags = sortedTags.filter(tag => tag.votes === lastIncludedVoteCount);
+      topTags = sortedTags.filter(tag => tag.votes > lastIncludedVoteCount).concat(tiedTags);
+    }
+
+    const nextPhase = currentPhase + 1;
 
     for (const tag of topTags) {
       const { error: updateTagError } = await supabase
@@ -222,26 +244,65 @@ export default function BubbleTagVotingPage() {
     setUserVotes([]);  // Clear the current votes
   };
 
+  const restartVotingForTags = async (tagsToKeep: Tag[]) => {
+    // Delete all votes for the current phase
+    const { error: deleteVotesError } = await supabase
+      .from('tag_votes')
+      .delete()
+      .eq('bubble_id', params.id)
+      .eq('phase', currentPhase);
+
+    if (deleteVotesError) {
+      console.error('Error deleting votes for current phase:', deleteVotesError);
+      return;
+    }
+
+    // Update the phase for the tags we're keeping
+    for (const tag of tagsToKeep) {
+      const { error: updateTagError } = await supabase
+        .from('bubble_tags')
+        .update({ phase: currentPhase })
+        .eq('id', tag.id);
+    
+      if (updateTagError) {
+        console.error('Error updating tag phase:', updateTagError);
+        return;
+      }
+    }
+    
+    // Delete any other tags that might be in this phase
+    const { error: deleteTagsError } = await supabase
+      .from('bubble_tags')
+      .delete()
+      .eq('bubble_id', params.id)
+      .eq('phase', currentPhase)
+      .not('id', 'in', `(${tagsToKeep.map(tag => tag.id).join(',')})`);
+    
+    if (deleteTagsError) {
+      console.error('Error deleting other tags:', deleteTagsError);
+      return;
+    }
+    
+
+    await fetchTags();
+    setUserVotes([]);  // Clear the current votes
+  };
+
   const handleFinalPhase = async () => {
-    if (tags.length !== 1) {
-      console.error('Unexpected number of tags in final phase');
-      return;
-    }
-
     const winningTag = tags[0];
+    
+    const { error: deleteVotesError } = await supabase
+      .from('tag_votes')
+      .delete()
+      .eq('bubble_id', params.id)
+      .eq('phase', currentPhase);
 
-    // Update the winning_tag in the bubbles table
-    const { error: updateBubbleError } = await supabase
-      .from('bubbles')
-      .update({ winning_tag: winningTag.id })
-      .eq('id', params.id);
-
-    if (updateBubbleError) {
-      console.error('Error updating winning tag:', updateBubbleError);
+    if (deleteVotesError) {
+      console.error('Error deleting votes for current phase:', deleteVotesError);
       return;
     }
-
-    // Remove all other tags from bubble_tags
+    
+    // 1. Delete other tags
     const { error: deleteTagsError } = await supabase
       .from('bubble_tags')
       .delete()
@@ -249,26 +310,25 @@ export default function BubbleTagVotingPage() {
       .neq('id', winningTag.id);
 
     if (deleteTagsError) {
-      console.error('Error removing non-winning tags:', deleteTagsError);
+      console.error('Error deleting other tags:', deleteTagsError);
       return;
     }
 
-    // Clear all votes
-    const { error: deleteVotesError } = await supabase
-      .from('tag_votes')
-      .delete()
-      .eq('bubble_id', params.id);
+    // 2. Update winning tag in bubbles table
+    const { error: updateBubbleError } = await supabase
+      .from('bubbles')
+      .update({ winning_tag: winningTag.name })
+      .eq('id', params.id);
 
-    if (deleteVotesError) {
-      console.error('Error clearing votes:', deleteVotesError);
+    if (updateBubbleError) {
+      console.error('Error updating winning tag:', updateBubbleError);
       return;
     }
 
-    // Update the UI
-    setBubble({ ...bubble!, winning_tag: winningTag.id });
-    setTags([winningTag]);
-    setUserVotes([]);
-    setCurrentPhase(phaseTagCounts.length + 1); // Set to a phase beyond the last voting phase
+    console.log('Bubble has ended. Winning tag:', winningTag.name);
+
+    // Refresh bubble data
+    await fetchBubbleData();
   };
 
   const updateBubblePhase = async (phase: number) => {
@@ -284,22 +344,33 @@ export default function BubbleTagVotingPage() {
     }
   };
 
+  const handleProceedToNextStage = () => {
+    router.push(`/bubble/${params.id}/final`);
+  };
+
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">{bubble?.team_name} - Tag Voting</h1>
-      <p className="mb-4">Current Phase: {currentPhase > phaseTagCounts.length ? 'Final' : currentPhase}</p>
-      
-      {currentPhase > phaseTagCounts.length ? (
-        <div>
-          <p className="mb-4">Voting has concluded. The winning tag is:</p>
-          <p className="text-xl font-bold">{tags[0]?.name}</p>
-        </div>
-      ) : (
-        <div>
-          <p className="mb-4">Vote for your favorite tags. You can vote for multiple tags, but only once per tag.</p>
-          {tags.length === 0 ? (
-            <p>No tags available for voting in this phase.</p>
-          ) : (
+      <p className="mb-4">Current Phase: {currentPhase}</p>
+      <p className="mb-4">Tags Remaining: {tags.length}</p>
+      <p className="mb-4">Target Tag Count for Next Phase: {getTargetTagCount(tags.length)}</p>
+        
+      <div>
+        {tags.length === 1 && bubble?.winning_tag ? (
+          <div>
+            <p className="mb-4">Winning Tag: {bubble.winning_tag}</p>
+            <button
+              onClick={handleProceedToNextStage}
+              className="bg-green-500 text-white px-4 py-2 rounded"
+            >
+              Proceed to Next Stage
+            </button>
+          </div>
+        ) : tags.length === 0 ? (
+          <p>No tags available for voting in this phase.</p>
+        ) : (
+          <>
+            <p className="mb-4">Vote for your favorite tags. You can vote for multiple tags, but only once per tag.</p>
             <ul className="space-y-4">
               {tags.map(tag => {
                 const hasVoted = userVotes.some(vote => vote.userId === currentUserId && vote.tagId === tag.id);
@@ -311,7 +382,6 @@ export default function BubbleTagVotingPage() {
                       <button
                         onClick={() => handleVote(tag.id)}
                         className={`px-4 py-2 rounded ${hasVoted ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'}`}
-                        disabled={currentPhase > phaseTagCounts.length}
                       >
                         {hasVoted ? 'Remove Vote' : 'Vote'}
                       </button>
@@ -320,11 +390,11 @@ export default function BubbleTagVotingPage() {
                 );
               })}
             </ul>
-          )}
-        </div>
-      )}
+          </>
+        )}
+      </div>
 
-      {isCreator && tags.length > 0 && currentPhase <= phaseTagCounts.length && (
+      {isCreator && tags.length > 1 && (
         <button
           onClick={handleEndPhase}
           className="mt-8 bg-green-500 text-white px-4 py-2 rounded"
