@@ -374,6 +374,13 @@ export default function BubblePage() {
             Go to Tags
           </button>
         )}
+
+        <button
+          onClick={() => router.push(`/bubble/${bubble.id}/tags`)}
+          className="bg-green-500 text-white px-4 py-2 rounded"
+        >
+          Go to Dashboard
+        </button>
       </div>
     </div>
   );
