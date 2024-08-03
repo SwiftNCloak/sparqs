@@ -38,7 +38,8 @@ export default function Homepage() {
             team_name,
             description,
             code,
-            created_by
+            created_by,
+            final_title
           )
         `)
         .eq('user_id', user.id);
@@ -179,51 +180,54 @@ export default function Homepage() {
           <div
             key={bubble.id}
             onClick={() => router.push(`/bubble/${bubble.id}`)}
-            className="relative px-4 py-3 border text-white border-gray-300 bg-themeOrange-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer w-full sm:w-72 h-24 max-h-24"
+            className="relative px-4 py-3 border text-white border-gray-300 bg-themeOrange-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer w-full sm:w-72 h-32 max-h-32"
           >
-            <div className="items-center justify-between flex">
-              <h3 className="font-semibold truncate">{bubble.team_name}</h3>
-              <div className="relative">
-                <FontAwesomeIcon
-                  icon={faEllipsis}
-                  className="w-4 h-4 cursor-pointer"
-                  onClick={(e) => handleMenuClick(e, bubble.id)}
-                />
-                {openMenuId === bubble.id && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
-                    <div className="py-1">
-                      {currentUser && currentUser.id === bubble.created_by ? (
-                        <>
+            <div className="flex flex-col">
+              <h3 className="font-semibold text-sm mb-1">{bubble.final_title || "New Untitled"}</h3>
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold truncate">{bubble.team_name}</h4>
+                <div className="relative">
+                  <FontAwesomeIcon
+                    icon={faEllipsis}
+                    className="w-4 h-4 cursor-pointer"
+                    onClick={(e) => handleMenuClick(e, bubble.id)}
+                  />
+                  {openMenuId === bubble.id && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                      <div className="py-1">
+                        {currentUser && currentUser.id === bubble.created_by ? (
+                          <>
+                            <button
+                              onClick={(e) => handleEdit(e, bubble.id)}
+                              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                            >
+                              <FontAwesomeIcon icon={faPencilAlt} className="mr-2" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={(e) => handleDelete(e, bubble.id)}
+                              className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
+                            >
+                              <FontAwesomeIcon icon={faTrash} className="mr-2" />
+                              Delete
+                            </button>
+                          </>
+                        ) : (
                           <button
-                            onClick={(e) => handleEdit(e, bubble.id)}
-                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                          >
-                            <FontAwesomeIcon icon={faPencilAlt} className="mr-2" />
-                            Edit
-                          </button>
-                          <button
-                            onClick={(e) => handleDelete(e, bubble.id)}
+                            onClick={(e) => handleLeave(e, bubble.id)}
                             className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
                           >
-                            <FontAwesomeIcon icon={faTrash} className="mr-2" />
-                            Delete
+                            <FontAwesomeIcon icon={faSignOutAlt} className="mr-2" />
+                            Leave
                           </button>
-                        </>
-                      ) : (
-                        <button
-                          onClick={(e) => handleLeave(e, bubble.id)}
-                          className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
-                        >
-                          <FontAwesomeIcon icon={faSignOutAlt} className="mr-2" />
-                          Leave
-                        </button>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
-            <p className="text-sm truncate">{bubble.description}</p>
+            <p className="text-sm truncate mt-2">{bubble.description}</p>
           </div>
         ))}
       </div>
