@@ -25,7 +25,9 @@ interface BubbleData {
   code: string;
   created_by: string;
   is_started: boolean;
-  final_title: string | null;
+  current_phase?: number;
+  winning_tag?: string;
+  final_title?: string;
 }
 
 export default function BubblePage() {
@@ -159,28 +161,66 @@ export default function BubblePage() {
   };
 
   const handleDelete = async () => {
-    if (confirm("Are you sure you want to delete this bubble? This action cannot be undone.")) {
-      const { error: membersError } = await supabase
-        .from('bubble_members')
-        .delete()
-        .eq('bubble_id', bubble?.id);
-  
-      if (membersError) {
-        alert("Failed to delete bubble members: " + membersError.message);
-        return;
+    const handleDelete = async () => {
+      if (confirm("Are you sure you want to delete this bubble? This action will also remove all associated tags, votes, titles, and members, and cannot be undone.")) {
+        try {
+          const { data: memberData, error: membersError } = await supabase
+            .from('bubble_members')
+            .select('user_id')
+            .eq('bubble_id', bubble?.id);
+      
+          if (membersError) {
+            throw new Error("Failed to fetch bubble members: " + membersError.message);
+          }
+      
+          // Start transaction
+          const { error: deleteBubbleError } = await supabase
+            .from('bubbles')
+            .delete()
+            .eq('id', bubble?.id);
+      
+          if (deleteBubbleError) {
+            throw new Error("Failed to delete bubble: " + deleteBubbleError.message);
+          }
+      
+          // Delete related rows from bubble_tags, tag_votes, title_list, and bubble_members
+          const { error: deleteTagsError } = await supabase
+            .from('bubble_tags')
+            .delete()
+            .eq('bubble_id', bubble?.id);
+      
+          const { error: deleteVotesError } = await supabase
+            .from('tag_votes')
+            .delete()
+            .eq('bubble_id', bubble?.id);
+      
+          const { error: deleteTitlesError } = await supabase
+            .from('title_list')
+            .delete()
+            .eq('bubble_id', bubble?.id);
+      
+          const { error: deleteMembersError } = await supabase
+            .from('bubble_members')
+            .delete()
+            .eq('bubble_id', bubble?.id);
+      
+          if (deleteTagsError || deleteVotesError || deleteTitlesError || deleteMembersError) {
+            throw new Error("Failed to delete related records: " +
+              [deleteTagsError, deleteVotesError, deleteTitlesError, deleteMembersError]
+                .filter(Boolean)
+                .map(error => error.message)
+                .join(", ")
+            );
+          }
+      
+          // Redirect to home after successful deletion
+          router.push('/home');
+        } catch (error) {
+          alert("An error occurred: " + error.message);
+        }
       }
-  
-      const { error: bubbleError } = await supabase
-        .from('bubbles')
-        .delete()
-        .eq('id', bubble?.id);
-  
-      if (bubbleError) {
-        alert("Failed to delete bubble: " + bubbleError.message);
-      } else {
-        router.push('/home');
-      }
-    }
+    };
+    
   };
 
   const handleLeave = async () => {
@@ -217,20 +257,24 @@ export default function BubblePage() {
   };
 
   const handleStart = async () => {
-    const { data, error } = await supabase
-      .from('bubbles')
-      .update({ is_started: true })
-      .eq('id', bubble?.id)
-      .select()
-      .single();
-
-    if (error) {
-      alert("Failed to start bubble: " + error.message);
-    } else {
-      setBubble(data);
-      router.push(`/bubble/${bubble?.id}/tags`);
+    try {
+      const { data, error } = await supabase
+        .from('bubbles')
+        .update({ is_started: true })
+        .eq('id', bubble?.id)
+        .select()
+        .single();
+  
+      if (error) {
+        throw new Error("Failed to start bubble: " + error.message);
+      } else {
+        router.push(`/bubble/${bubble?.id}/tags`);
+      }
+    } catch (error) {
+      alert("An error occurred: " + error.message);
     }
   };
+  
 
   const handleMenuClick = (e) => {
     e.stopPropagation();
@@ -256,6 +300,21 @@ export default function BubblePage() {
     e.stopPropagation();
     handleStart();
   };
+
+  const getButtonTextAndUrl = () => {
+    if (bubble?.final_title) {
+      return { text: "Go to Dashboard", url: `/bubble/${params.id}/dashboard` };
+    }
+    if (bubble?.winning_tag) {
+      return { text: "Go to Generated Titles", url: `/bubble/${params.id}/final` };
+    }
+    if (bubble?.current_phase) {
+      return { text: "Go to Voting", url: `/bubble/${params.id}/voting` };
+    }
+    return { text: "Go to Tags", url: `/bubble/${params.id}/tags` };
+  };
+
+  const { text: buttonText, url: buttonUrl } = getButtonTextAndUrl();
 
   const isCreator = currentUser && bubble && currentUser.id === bubble.created_by;
 
@@ -283,7 +342,43 @@ export default function BubblePage() {
             />
             {isMenuOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
-                {/* ... (menu items remain the same) */}
+                <div className="py-1">
+                  {isCreator ? (
+                    <>
+                      <button
+                        onClick={handleEditClick}
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                      >
+                        <FontAwesomeIcon icon={faPencilAlt} className="mr-2" />
+                        {isEditing ? "Save" : "Edit"}
+                      </button>
+                      <button
+                        onClick={handleDeleteClick}
+                        className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
+                      >
+                        <FontAwesomeIcon icon={faTrash} className="mr-2" />
+                        Delete
+                      </button>
+                      {!bubble.is_started && (
+                        <button
+                          onClick={handleStartClick}
+                          className="flex items-center px-4 py-2 text-sm text-green-600 hover:bg-gray-100 w-full text-left"
+                        >
+                          <FontAwesomeIcon icon={faPlay} className="mr-2" />
+                          Start
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <button
+                      onClick={handleLeaveClick}
+                      className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
+                    >
+                      <FontAwesomeIcon icon={faSignOutAlt} className="mr-2" />
+                      Leave
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -300,14 +395,6 @@ export default function BubblePage() {
         )}
         <p className="text-white text-sm">Invite Code: {bubble.code}</p>
       </div>
-      
-      {/* New section for final_title */}
-      <div className="mb-4">
-        <h2 className="text-2xl font-bold text-gray-800">
-          {bubble.final_title || "New Untitled"}
-        </h2>
-      </div>
-
       <p className="text-xl font-bold text-gray-600">Members: {memberCount}</p>
       <div>
         {members.length > 0 ? (
@@ -330,7 +417,7 @@ export default function BubblePage() {
           <p className="text-gray-700">No members found for this bubble.</p>
         )}
       </div>
-      <div className="mt-4 space-x-3">
+      <div className="mt-4">
         {isCreator && !bubble.is_started && (
           <button
             onClick={handleStart}
@@ -341,19 +428,12 @@ export default function BubblePage() {
         )}
         {bubble.is_started && (
           <button
-            onClick={() => router.push(`/bubble/${bubble.id}/tags`)}
+            onClick={() => router.push(buttonUrl)}
             className="bg-blue-500 text-white px-4 py-2 rounded"
           >
-            Go to Tags
+            {buttonText}
           </button>
         )}
-
-        <button
-          onClick={() => router.push(`/bubble/${bubble.id}/dashboard`)}
-          className="bg-green-500 text-white px-4 py-2 rounded"
-        >
-          Go to Dashboard
-        </button>
       </div>
     </div>
   );

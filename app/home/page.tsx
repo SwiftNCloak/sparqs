@@ -174,60 +174,70 @@ export default function Homepage() {
 
   return (
     <div className="min-h-[500px] w-full p-2 relative">
-      <h2 className="text-2xl font-bold mb-4">Your Bubbles</h2>
+      <h2 className="text-2xl font-bold mb-5">Your Bubbles</h2>
       <div className="flex flex-wrap gap-4 mb-6">
         {bubbles.map(bubble => (
           <div
             key={bubble.id}
+            className="relative w-full sm:w-72 h-36 cursor-pointer"
             onClick={() => router.push(`/bubble/${bubble.id}`)}
-            className="relative px-4 py-3 border text-white border-gray-300 bg-themeOrange-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer w-full sm:w-72 h-32 max-h-32"
           >
-            <div className="flex flex-col">
-              <h3 className="font-semibold text-sm mb-1">{bubble.final_title || "New Untitled"}</h3>
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold truncate">{bubble.team_name}</h4>
-                <div className="relative">
-                  <FontAwesomeIcon
-                    icon={faEllipsis}
-                    className="w-4 h-4 cursor-pointer"
-                    onClick={(e) => handleMenuClick(e, bubble.id)}
-                  />
-                  {openMenuId === bubble.id && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
-                      <div className="py-1">
-                        {currentUser && currentUser.id === bubble.created_by ? (
-                          <>
-                            <button
-                              onClick={(e) => handleEdit(e, bubble.id)}
-                              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                            >
-                              <FontAwesomeIcon icon={faPencilAlt} className="mr-2" />
-                              Edit
-                            </button>
-                            <button
-                              onClick={(e) => handleDelete(e, bubble.id)}
-                              className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
-                            >
-                              <FontAwesomeIcon icon={faTrash} className="mr-2" />
-                              Delete
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={(e) => handleLeave(e, bubble.id)}
-                            className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
-                          >
-                            <FontAwesomeIcon icon={faSignOutAlt} className="mr-2" />
-                            Leave
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
+            {/* Blue background */}
+            <div className="absolute inset-0 bg-blue-300 rounded-lg transform -translate-y-2"></div>
+            
+            {/* Orange card */}
+            <div className="absolute inset-0 px-4 py-3 bg-themeOrange-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 translate-y-2">
+              <div className="flex flex-col h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold text-white truncate">{bubble.team_name}</h4>
+                  <div className="flex items-center">
+                    <span className="text-sm text-white mr-2">{/* Add member count here */}</span>
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                    <FontAwesomeIcon
+                      icon={faEllipsis}
+                      className="w-4 h-4 text-white cursor-pointer"
+                      onClick={(e) => handleMenuClick(e, bubble.id)}
+                    />
+                  </div>
                 </div>
+                <h3 className="font-semibold text-sm text-white mb-auto">{bubble.final_title || "New Untitled"}</h3>
+                <div className="h-1 bg-white bg-opacity-30 rounded mt-2"></div>
               </div>
+              
+              {/* Menu dropdown */}
+              {openMenuId === bubble.id && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                  <div className="py-1">
+                    {currentUser && currentUser.id === bubble.created_by ? (
+                      <>
+                        <button
+                          onClick={(e) => handleEdit(e, bubble.id)}
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                        >
+                          <FontAwesomeIcon icon={faPencilAlt} className="mr-2" />
+                          Edit
+                        </button>
+                        <button
+                          onClick={(e) => handleDelete(e, bubble.id)}
+                          className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
+                        >
+                          <FontAwesomeIcon icon={faTrash} className="mr-2" />
+                          Delete
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={(e) => handleLeave(e, bubble.id)}
+                        className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
+                      >
+                        <FontAwesomeIcon icon={faSignOutAlt} className="mr-2" />
+                        Leave
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-            <p className="text-sm truncate mt-2">{bubble.description}</p>
           </div>
         ))}
       </div>
