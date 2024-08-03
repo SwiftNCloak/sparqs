@@ -65,7 +65,7 @@ export default function NavBar() {
 
                 {/* Profile Picture and Notification Bell */}
                 <div className="items-center justify-between flex gap-4">
-                    <FontAwesomeIcon icon={faBell} className="text-2xl" />
+                    {/* <FontAwesomeIcon icon={faBell} className="text-2xl" /> */}
                     <div className="border border-white rounded-full min-w-8 h-8 items-center 
                         justify-between flex px-3">
                     <p className="text-md"></p>
@@ -92,7 +92,7 @@ export default function NavBar() {
 
         {/* Profile Picture and Notification Bell */}
         <div className="items-center justify-between flex gap-4">
-            <FontAwesomeIcon icon={faBell} className="text-2xl" />
+            {/* <FontAwesomeIcon icon={faBell} className="text-2xl" /> */}
             <div className="border border-white rounded-full min-w-8 h-8 items-center 
                 justify-between flex px-3">
               <p className="text-md">{userData.username}</p>
