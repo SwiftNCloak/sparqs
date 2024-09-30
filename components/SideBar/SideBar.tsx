@@ -43,13 +43,13 @@ export default function SideBar() {
       {/* Upper div with Home and Calendar */}
       <div className={`flex flex-col py-3 h-full overflow-auto pr-2`}>
         <NavLink href="/" icon={faHouse} label="Home" isExpanded={isExpanded} />
-        <NavLink href="/calendar" icon={faCalendarDays} label="Calendar" isExpanded={isExpanded} />
+        {/* <NavLink href="/calendar" icon={faCalendarDays} label="Calendar" isExpanded={isExpanded} /> */}
       </div>
       
       {/* Lower div with Settings */}
-      <div className={`flex flex-col py-3 border-t border-themeWhite-200 h-36 pr-2`}>
+      {/* <div className={`flex flex-col py-3 border-t border-themeWhite-200 h-36 pr-2`}>
         <NavLink href="/settings" icon={faGear} label="Settings" isExpanded={isExpanded} />
-      </div>
+      </div> */}
     </div>
   );
 }
